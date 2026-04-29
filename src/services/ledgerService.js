@@ -48,7 +48,12 @@ class LedgerService {
     const creditBalanceBefore = await this.getBalance(creditAccountId, client);
 
     // Invariant 7 — debit account cannot go negative
-    if (debitBalanceBefore - amount < 0) {
+    // Exception: system account represents external money (Paystack float)
+    // and is exempt from the non-negative balance check
+    const SYSTEM_ACCOUNT_ID = process.env.SYSTEM_ACCOUNT_ID;
+    const isSystemAccount = debitAccountId === SYSTEM_ACCOUNT_ID;
+
+    if (!isSystemAccount && debitBalanceBefore - amount < 0) {
       throw new Error(
         `Insufficient balance. Account ${debitAccountId} has ₦${debitBalanceBefore / 100} but needs ₦${amount / 100}`
       );

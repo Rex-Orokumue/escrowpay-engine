@@ -107,11 +107,10 @@ class EscrowService {
       throw new Error('Only the buyer can fund this escrow order.');
     }
 
-    // Check buyer has sufficient balance
     const buyerBalance = await ledgerService.getBalance(buyerAccountId);
     if (buyerBalance < parseInt(escrowOrder.amount, 10)) {
       throw new Error(
-        `Insufficient balance. Available: ₦${(buyerBalance / 100).toFixed(2)}, Required: ₦${(escrowOrder.amount / 100).toFixed(2)}`
+        `Insufficient balance. Available: ₦${(buyerBalance / 100).toFixed(2)}, Required: ₦${(parseInt(escrowOrder.amount, 10) / 100).toFixed(2)}`
       );
     }
 
@@ -120,20 +119,38 @@ class EscrowService {
     try {
       await client.query('BEGIN');
 
-      // Move funds: buyer wallet → escrow account
-      const result = await transactionService.execute({
-        type: 'escrow_fund',
-        amount: parseInt(escrowOrder.amount, 10),
-        currency: escrowOrder.currency,
+      // Create transaction record inside the same client
+      const idempotencyKey = require('uuid').v4();
+      const transaction = await client.query(
+        `INSERT INTO transactions
+          (idempotency_key, type, status, amount, currency, metadata)
+         VALUES ($1, 'escrow_fund', 'pending', $2, $3, $4)
+         RETURNING *`,
+        [
+          idempotencyKey,
+          parseInt(escrowOrder.amount, 10),
+          escrowOrder.currency,
+          JSON.stringify({ escrowOrderId, description: `Escrow funded for order ${escrowOrderId}` })
+        ]
+      );
+
+      const transactionId = transaction.rows[0].id;
+
+      // Create ledger entries inside the SAME client/transaction
+      await ledgerService.createEntries({
+        transactionId,
         debitAccountId: buyerAccountId,
         creditAccountId: escrowOrder.escrow_account_id,
-        metadata: {
-          escrowOrderId,
-          description: `Escrow funded for order ${escrowOrderId}`
-        }
-      });
+        amount: parseInt(escrowOrder.amount, 10)
+      }, client);
 
-      // Update escrow order status to funded
+      // Mark transaction completed
+      await client.query(
+        `UPDATE transactions SET status = 'completed' WHERE id = $1`,
+        [transactionId]
+      );
+
+      // Update escrow status — inside the SAME transaction
       await client.query(
         `UPDATE escrow_orders
          SET status = 'funded', funded_at = now()
@@ -141,6 +158,7 @@ class EscrowService {
         [escrowOrderId]
       );
 
+      // Everything succeeded — commit
       await client.query('COMMIT');
 
       const newBuyerBalance = await ledgerService.getBalance(buyerAccountId);
@@ -148,9 +166,9 @@ class EscrowService {
       return {
         success: true,
         escrowOrderId,
-        transactionId: result.transaction.id,
-        amount: escrowOrder.amount,
-        amountFormatted: `₦${(escrowOrder.amount / 100).toFixed(2)}`,
+        transactionId,
+        amount: parseInt(escrowOrder.amount, 10),
+        amountFormatted: `₦${(parseInt(escrowOrder.amount, 10) / 100).toFixed(2)}`,
         newBuyerBalance,
         newBuyerBalanceFormatted: `₦${(newBuyerBalance / 100).toFixed(2)}`,
         status: 'funded'
@@ -184,20 +202,34 @@ class EscrowService {
     try {
       await client.query('BEGIN');
 
-      // Move funds: escrow account → seller wallet
-      const result = await transactionService.execute({
-        type: 'escrow_release',
-        amount: parseInt(escrowOrder.amount, 10),
-        currency: escrowOrder.currency,
+      const idempotencyKey = require('uuid').v4();
+      const transaction = await client.query(
+        `INSERT INTO transactions
+          (idempotency_key, type, status, amount, currency, metadata)
+         VALUES ($1, 'escrow_release', 'pending', $2, $3, $4)
+         RETURNING *`,
+        [
+          idempotencyKey,
+          parseInt(escrowOrder.amount, 10),
+          escrowOrder.currency,
+          JSON.stringify({ escrowOrderId, description: `Escrow released for order ${escrowOrderId}` })
+        ]
+      );
+
+      const transactionId = transaction.rows[0].id;
+
+      await ledgerService.createEntries({
+        transactionId,
         debitAccountId: escrowOrder.escrow_account_id,
         creditAccountId: escrowOrder.seller_account_id,
-        metadata: {
-          escrowOrderId,
-          description: `Escrow released for order ${escrowOrderId}`
-        }
-      });
+        amount: parseInt(escrowOrder.amount, 10)
+      }, client);
 
-      // Update escrow order status
+      await client.query(
+        `UPDATE transactions SET status = 'completed' WHERE id = $1`,
+        [transactionId]
+      );
+
       await client.query(
         `UPDATE escrow_orders
          SET status = 'released', released_at = now()
@@ -212,9 +244,9 @@ class EscrowService {
       return {
         success: true,
         escrowOrderId,
-        transactionId: result.transaction.id,
-        amount: escrowOrder.amount,
-        amountFormatted: `₦${(escrowOrder.amount / 100).toFixed(2)}`,
+        transactionId,
+        amount: parseInt(escrowOrder.amount, 10),
+        amountFormatted: `₦${(parseInt(escrowOrder.amount, 10) / 100).toFixed(2)}`,
         sellerAccountId: escrowOrder.seller_account_id,
         sellerNewBalance: sellerBalance,
         sellerNewBalanceFormatted: `₦${(sellerBalance / 100).toFixed(2)}`,
@@ -245,20 +277,34 @@ class EscrowService {
     try {
       await client.query('BEGIN');
 
-      // Move funds: escrow account → buyer wallet
-      const result = await transactionService.execute({
-        type: 'escrow_refund',
-        amount: parseInt(escrowOrder.amount, 10),
-        currency: escrowOrder.currency,
+      const idempotencyKey = require('uuid').v4();
+      const transaction = await client.query(
+        `INSERT INTO transactions
+          (idempotency_key, type, status, amount, currency, metadata)
+         VALUES ($1, 'escrow_refund', 'pending', $2, $3, $4)
+         RETURNING *`,
+        [
+          idempotencyKey,
+          parseInt(escrowOrder.amount, 10),
+          escrowOrder.currency,
+          JSON.stringify({ escrowOrderId, description: `Escrow refunded for order ${escrowOrderId}` })
+        ]
+      );
+
+      const transactionId = transaction.rows[0].id;
+
+      await ledgerService.createEntries({
+        transactionId,
         debitAccountId: escrowOrder.escrow_account_id,
         creditAccountId: escrowOrder.buyer_account_id,
-        metadata: {
-          escrowOrderId,
-          description: `Escrow refunded for order ${escrowOrderId}`
-        }
-      });
+        amount: parseInt(escrowOrder.amount, 10)
+      }, client);
 
-      // Update escrow order status
+      await client.query(
+        `UPDATE transactions SET status = 'completed' WHERE id = $1`,
+        [transactionId]
+      );
+
       await client.query(
         `UPDATE escrow_orders
          SET status = 'refunded', refunded_at = now()
@@ -273,9 +319,9 @@ class EscrowService {
       return {
         success: true,
         escrowOrderId,
-        transactionId: result.transaction.id,
-        amount: escrowOrder.amount,
-        amountFormatted: `₦${(escrowOrder.amount / 100).toFixed(2)}`,
+        transactionId,
+        amount: parseInt(escrowOrder.amount, 10),
+        amountFormatted: `₦${(parseInt(escrowOrder.amount, 10) / 100).toFixed(2)}`,
         buyerAccountId: escrowOrder.buyer_account_id,
         buyerNewBalance: buyerBalance,
         buyerNewBalanceFormatted: `₦${(buyerBalance / 100).toFixed(2)}`,
