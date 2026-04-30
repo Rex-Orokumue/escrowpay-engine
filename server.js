@@ -9,6 +9,7 @@ const walletRoutes = require('./src/routes/walletRoutes');
 const escrowRoutes = require('./src/routes/escrowRoutes');
 const platformRoutes = require('./src/routes/platformRoutes');
 const transactionRoutes = require('./src/routes/transactionRoutes');
+const autoReleaseService = require('./src/services/autoReleaseService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -67,6 +68,40 @@ app.use((err, req, res, next) => {
     success: false,
     error: 'Internal server error'
   });
+});
+
+// Internal cron endpoint — auto release funded escrows
+// Called by Railway cron or UptimeRobot daily
+app.post('/internal/auto-release', async (req, res) => {
+  const cronKey = req.headers['x-cron-key'];
+
+  if (cronKey !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  try {
+    const result = await autoReleaseService.run();
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Internal cron endpoint — retry failed webhooks
+app.post('/internal/retry-webhooks', async (req, res) => {
+  const cronKey = req.headers['x-cron-key'];
+
+  if (cronKey !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  try {
+    const webhookService = require('./src/services/webhookService');
+    const result = await webhookService.retryFailed();
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Start server

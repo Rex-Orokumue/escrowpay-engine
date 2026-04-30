@@ -17,6 +17,8 @@ const pool = require('../config/db');
 const accountRepository = require('../repositories/accountRepository');
 const transactionService = require('./transactionService');
 const ledgerService = require('./ledgerService');
+const webhookService = require('./webhookService');
+const { calculateFee } = require('../utils/feeCalculator');
 
 class EscrowService {
 
@@ -27,6 +29,11 @@ class EscrowService {
 
     if (!Number.isInteger(amount) || amount <= 0) {
       throw new Error(`Invalid amount: ${amount}. Must be a positive integer in kobo.`);
+    }
+
+    const FEE_ACCOUNT_ID = process.env.FEE_ACCOUNT_ID;
+    if (!FEE_ACCOUNT_ID) {
+      throw new Error('FEE_ACCOUNT_ID is not configured in environment variables.');
     }
 
     // Validate buyer account
@@ -44,13 +51,24 @@ class EscrowService {
       throw new Error(`Currency mismatch: ${buyerAccount.currency} vs ${sellerAccount.currency}.`);
     }
 
+    // Get platform prefix for fee calculation
+    const platformResult = await pool.query(
+      `SELECT p.prefix FROM accounts a
+       LEFT JOIN platforms p ON p.id = a.platform_id
+       WHERE a.id = $1`,
+      [buyerAccountId]
+    );
+    const platformPrefix = platformResult.rows[0]?.prefix || null;
+
+    // Calculate fee
+    const feeDetails = calculateFee(amount, platformPrefix);
+
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       // Create dedicated escrow wallet account for this order
-      // One escrow account per order — this is the correct design
       const escrowAccount = await client.query(
         `INSERT INTO accounts (user_id, type, currency, status)
          VALUES (gen_random_uuid(), 'escrow_wallet', $1, 'active')
@@ -60,16 +78,46 @@ class EscrowService {
 
       const escrowAccountId = escrowAccount.rows[0].id;
 
-      // Create the escrow order
+      // Create the escrow order with fee details
       const escrowOrder = await client.query(
         `INSERT INTO escrow_orders
-          (buyer_account_id, seller_account_id, escrow_account_id, amount, currency, status, metadata)
-         VALUES ($1, $2, $3, $4, $5, 'created', $6)
+          (buyer_account_id, seller_account_id, escrow_account_id,
+           amount, currency, status, metadata,
+           fee_amount, fee_account_id, total_amount)
+         VALUES ($1, $2, $3, $4, $5, 'created', $6, $7, $8, $9)
          RETURNING *`,
-        [buyerAccountId, sellerAccountId, escrowAccountId, amount, currency, JSON.stringify(metadata)]
+        [
+          buyerAccountId,
+          sellerAccountId,
+          escrowAccountId,
+          amount,
+          currency,
+          JSON.stringify(metadata),
+          feeDetails.fee,
+          FEE_ACCOUNT_ID,
+          feeDetails.totalAmount
+        ]
       );
 
       await client.query('COMMIT');
+
+      // Fire webhook
+      if (buyerAccount.platform_id) {
+        webhookService.fire({
+          platformId: buyerAccount.platform_id,
+          eventType: 'escrow.created',
+          payload: {
+            escrowOrderId: escrowOrder.rows[0].id,
+            buyerAccountId,
+            sellerAccountId,
+            amount,
+            fee: feeDetails.fee,
+            totalAmount: feeDetails.totalAmount,
+            currency,
+            status: 'created'
+          }
+        });
+      }
 
       return {
         success: true,
@@ -79,8 +127,13 @@ class EscrowService {
         sellerAccountId,
         amount,
         amountFormatted: `₦${(amount / 100).toFixed(2)}`,
+        fee: feeDetails.fee,
+        feeFormatted: feeDetails.feeFormatted,
+        totalAmount: feeDetails.totalAmount,
+        totalAmountFormatted: feeDetails.totalAmountFormatted,
         currency,
-        status: 'created'
+        status: 'created',
+        feeBreakdown: feeDetails.breakdown
       };
 
     } catch (error) {
@@ -107,10 +160,15 @@ class EscrowService {
       throw new Error('Only the buyer can fund this escrow order.');
     }
 
+    // Pre-validation balance check — fast fail before hitting DB
+    // Note: the real guard is inside ledgerService.createEntries()
+    // which runs inside the transaction. This outer check is
+    // not the authoritative check — it's a UX optimization.
     const buyerBalance = await ledgerService.getBalance(buyerAccountId);
-    if (buyerBalance < parseInt(escrowOrder.amount, 10)) {
+    const totalRequired = parseInt(escrowOrder.total_amount, 10);
+    if (buyerBalance < totalRequired) {
       throw new Error(
-        `Insufficient balance. Available: ₦${(buyerBalance / 100).toFixed(2)}, Required: ₦${(parseInt(escrowOrder.amount, 10) / 100).toFixed(2)}`
+        `Insufficient balance. Available: ₦${(buyerBalance / 100).toFixed(2)}, Required: ₦${(totalRequired / 100).toFixed(2)} (includes ₦${(parseInt(escrowOrder.fee_amount, 10) / 100).toFixed(2)} escrow fee)`
       );
     }
 
@@ -137,18 +195,46 @@ class EscrowService {
       const transactionId = transaction.rows[0].id;
 
       // Create ledger entries inside the SAME client/transaction
+      const orderAmount = parseInt(escrowOrder.amount, 10);
+      const feeAmount = parseInt(escrowOrder.fee_amount, 10);
+      const totalAmount = parseInt(escrowOrder.total_amount, 10);
+
+      // Move order amount: buyer → escrow account
       await ledgerService.createEntries({
         transactionId,
         debitAccountId: buyerAccountId,
         creditAccountId: escrowOrder.escrow_account_id,
-        amount: parseInt(escrowOrder.amount, 10)
+        amount: orderAmount
       }, client);
 
-      // Mark transaction completed
-      await client.query(
-        `UPDATE transactions SET status = 'completed' WHERE id = $1`,
-        [transactionId]
-      );
+      // Move fee: buyer → fee wallet (if fee exists)
+      if (feeAmount > 0) {
+        const feeIdempotencyKey = require('uuid').v4();
+        const feeTransaction = await client.query(
+          `INSERT INTO transactions
+            (idempotency_key, type, status, amount, currency, metadata)
+          VALUES ($1, 'escrow_fund', 'pending', $2, $3, $4)
+          RETURNING *`,
+          [
+            feeIdempotencyKey,
+            feeAmount,
+            escrowOrder.currency,
+            JSON.stringify({ escrowOrderId, description: `Escrow fee for order ${escrowOrderId}` })
+          ]
+        );
+
+        await ledgerService.createEntries({
+          transactionId: feeTransaction.rows[0].id,
+          debitAccountId: buyerAccountId,
+          creditAccountId: escrowOrder.fee_account_id,
+          amount: feeAmount
+        }, client);
+
+        await client.query(
+          `UPDATE transactions SET status = 'completed' WHERE id = $1`,
+          [feeTransaction.rows[0].id]
+        );
+      }
 
       // Update escrow status — inside the SAME transaction
       await client.query(
@@ -162,6 +248,25 @@ class EscrowService {
       await client.query('COMMIT');
 
       const newBuyerBalance = await ledgerService.getBalance(buyerAccountId);
+      
+      // Fire webhook — escrow.funded
+      const platform = await pool.query(
+        `SELECT platform_id FROM accounts WHERE id = $1`,
+        [buyerAccountId]
+      );
+      if (platform.rows[0]?.platform_id) {
+        webhookService.fire({
+          platformId: platform.rows[0].platform_id,
+          eventType: 'escrow.funded',
+          payload: {
+            escrowOrderId,
+            transactionId,
+            amount: parseInt(escrowOrder.amount, 10),
+            newBuyerBalance,
+            status: 'funded'
+          }
+        });
+      }
 
       return {
         success: true,
@@ -240,6 +345,26 @@ class EscrowService {
       await client.query('COMMIT');
 
       const sellerBalance = await ledgerService.getBalance(escrowOrder.seller_account_id);
+      
+      // Fire webhook — escrow.released
+      const platform = await pool.query(
+        `SELECT platform_id FROM accounts WHERE id = $1`,
+        [buyerAccountId]
+      );
+      if (platform.rows[0]?.platform_id) {
+        webhookService.fire({
+          platformId: platform.rows[0].platform_id,
+          eventType: 'escrow.released',
+          payload: {
+            escrowOrderId,
+            transactionId,
+            amount: parseInt(escrowOrder.amount, 10),
+            sellerAccountId: escrowOrder.seller_account_id,
+            sellerNewBalance: sellerBalance,
+            status: 'released'
+          }
+        });
+      }
 
       return {
         success: true,
@@ -316,6 +441,26 @@ class EscrowService {
 
       const buyerBalance = await ledgerService.getBalance(escrowOrder.buyer_account_id);
 
+      // Fire webhook — escrow.refunded
+      const platform = await pool.query(
+        `SELECT platform_id FROM accounts WHERE id = $1`,
+        [escrowOrder.buyer_account_id]
+      );
+      if (platform.rows[0]?.platform_id) {
+        webhookService.fire({
+          platformId: platform.rows[0].platform_id,
+          eventType: 'escrow.refunded',
+          payload: {
+            escrowOrderId,
+            transactionId,
+            amount: parseInt(escrowOrder.amount, 10),
+            buyerAccountId: escrowOrder.buyer_account_id,
+            buyerNewBalance: buyerBalance,
+            status: 'refunded'
+          }
+        });
+      }
+
       return {
         success: true,
         escrowOrderId,
@@ -359,6 +504,24 @@ class EscrowService {
        WHERE id = $2`,
       [JSON.stringify({ disputeReason: reason, disputedBy: buyerAccountId }), escrowOrderId]
     );
+
+    // Fire webhook — escrow.disputed
+    const platform = await pool.query(
+      `SELECT platform_id FROM accounts WHERE id = $1`,
+      [buyerAccountId]
+    );
+    if (platform.rows[0]?.platform_id) {
+      webhookService.fire({
+        platformId: platform.rows[0].platform_id,
+        eventType: 'escrow.disputed',
+        payload: {
+          escrowOrderId,
+          buyerAccountId,
+          reason,
+          status: 'disputed'
+        }
+      });
+    }
 
     return {
       success: true,
