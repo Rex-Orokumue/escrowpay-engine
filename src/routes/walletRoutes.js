@@ -13,6 +13,8 @@ const {
 // All wallet routes require authentication
 router.use(authenticate);
 
+router.get('/mine', walletController.getMyWallets);
+
 // Wallet routes
 router.post('/create', validateCreateWallet, walletController.createWallet);
 router.get('/:accountId/balance', walletController.getBalance);

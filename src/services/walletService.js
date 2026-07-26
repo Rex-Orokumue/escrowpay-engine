@@ -248,6 +248,26 @@ class WalletService {
       createdAt: account.created_at
     };
   }
+
+  // ── Get all wallets for a platform ───────────────────────────
+  async getForPlatform(platformId, limit = 50, offset = 0) {
+    const accounts = await accountRepository.findByPlatformId(platformId, limit, offset);
+
+    return Promise.all(accounts.map(async (account) => {
+      const balance = await ledgerService.getBalance(account.id);
+      return {
+        accountId: account.id,
+        userId: account.user_id,
+        walletId: account.wallet_id,
+        type: account.type,
+        currency: account.currency,
+        status: account.status,
+        balance,
+        balanceFormatted: `₦${(balance / 100).toFixed(2)}`,
+        createdAt: account.created_at
+      };
+    }));
+  }
 }
 
 module.exports = new WalletService();

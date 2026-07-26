@@ -88,6 +88,19 @@ class AccountRepository {
 
     return result.rows;
   }
+
+  // ── Get all accounts for one platform ────────────────────────
+  async findByPlatformId(platformId, limit = 50, offset = 0) {
+    const result = await pool.query(
+      `SELECT * FROM accounts
+       WHERE platform_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [platformId, limit, offset]
+    );
+
+    return result.rows;
+  }
 }
 
 module.exports = new AccountRepository();

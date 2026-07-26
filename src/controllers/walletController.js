@@ -36,6 +36,28 @@ class WalletController {
     }
   }
 
+  // GET /wallet/mine
+  async getMyWallets(req, res) {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const offset = parseInt(req.query.offset) || 0;
+
+      const wallets = await walletService.getForPlatform(req.platform.id, limit, offset);
+
+      return res.status(200).json({
+        success: true,
+        data: wallets,
+        meta: { limit, offset, count: wallets.length }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
   // GET /wallet/:accountId/balance
   async getBalance(req, res) {
     try {
