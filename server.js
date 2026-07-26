@@ -10,6 +10,7 @@ const escrowRoutes = require('./src/routes/escrowRoutes');
 const platformRoutes = require('./src/routes/platformRoutes');
 const transactionRoutes = require('./src/routes/transactionRoutes');
 const authRoutes = require('./src/routes/authRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 const autoReleaseService = require('./src/services/autoReleaseService');
 
 const app = express();
@@ -54,6 +55,7 @@ app.use('/escrow', escrowRoutes);
 app.use('/platforms', platformRoutes);
 app.use('/transactions', transactionRoutes);
 app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {

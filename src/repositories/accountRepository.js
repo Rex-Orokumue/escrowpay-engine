@@ -101,6 +101,20 @@ class AccountRepository {
 
     return result.rows;
   }
+
+  // ── Get all accounts with platform info (admin) ──────────────
+  async findAllWithPlatform(limit = 50, offset = 0) {
+    const result = await pool.query(
+      `SELECT a.*, p.name as platform_name, p.prefix as platform_prefix
+       FROM accounts a
+       LEFT JOIN platforms p ON p.id = a.platform_id
+       ORDER BY a.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    return result.rows;
+  }
 }
 
 module.exports = new AccountRepository();
