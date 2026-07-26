@@ -104,10 +104,25 @@ login itself).
 New `adminRoutes.js`, all behind `authenticateAdmin` (`x-admin-key`):
 
 - `GET /admin/stats` — system-wide counts (total wallets, total locked,
-  active escrows, open disputes) for the Overview screen
+  active escrows, open disputes) for the Overview screen, plus
+  `ledgerHealthy: boolean` — calls the existing
+  `ledgerService.verifyLedgerBalance()` (already implemented,
+  `src/services/ledgerService.js:138`, returns `{ totalDr, totalCr,
+  balanced, difference }`) and surfaces its `balanced` field. This backs
+  the mockup's "Ledger Health" card — green "All invariants passing" when
+  `true`, red when `false`. The other three badges (Atomic, Immutable,
+  Idempotent) are structural guarantees of the schema/transaction design
+  itself, not runtime checks, so they render as static "always true"
+  badges rather than calling anything.
 - `GET /admin/wallets` — all wallets, all platforms
 - `GET /admin/escrows` — all escrow orders, filterable by `?status=`
 - `GET /admin/transactions` — full transaction log
+- `GET /admin/ledger` — paginated ledger entries, filterable by account
+  type (`?type=user_wallet|escrow_wallet|system|fee_wallet`), joined with
+  `accounts` (for account type/wallet_id) and `transactions` (for
+  transaction type) — backs `Ledger.tsx` (entry ID, account, type,
+  DR/CR direction, amount, balance_after, timestamp), matching the
+  Figma "Ledger Entries" screen
 - `GET /admin/disputes` — escrow orders where `status = 'disputed'`
 - `POST /admin/disputes/:id/release` — resolves a dispute by releasing to
   the seller (calls existing `escrowService.releaseEscrow` logic)
