@@ -11,7 +11,7 @@
 
 const pool = require('../config/db');
 const ledgerService = require('./ledgerService');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 class TransactionService {
 
@@ -45,7 +45,7 @@ class TransactionService {
 
   // ── Create a transaction record ──────────────────────────────
   async createTransaction({ type, amount, currency = 'NGN', metadata = {} }, client) {
-    const idempotencyKey = uuidv4();
+    const idempotencyKey = randomUUID();
 
     const result = await client.query(
       `INSERT INTO transactions

@@ -14,6 +14,7 @@ router.post('/fund', financialLimiter, escrowController.fundEscrow);
 router.post('/release', financialLimiter, escrowController.releaseEscrow);
 router.post('/refund', financialLimiter, escrowController.refundEscrow);
 router.post('/dispute', escrowController.disputeEscrow);
+router.get('/mine', escrowController.getMyEscrows);
 router.get('/:escrowId', escrowController.getEscrowOrder);
 
 module.exports = router;

@@ -14,6 +14,7 @@
 // ============================================================
 
 const pool = require('../config/db');
+const { randomUUID } = require('crypto');
 const accountRepository = require('../repositories/accountRepository');
 const transactionService = require('./transactionService');
 const ledgerService = require('./ledgerService');
@@ -178,7 +179,7 @@ class EscrowService {
       await client.query('BEGIN');
 
       // Create transaction record inside the same client
-      const idempotencyKey = require('uuid').v4();
+      const idempotencyKey = randomUUID();
       const transaction = await client.query(
         `INSERT INTO transactions
           (idempotency_key, type, status, amount, currency, metadata)
@@ -209,7 +210,7 @@ class EscrowService {
 
       // Move fee: buyer → fee wallet (if fee exists)
       if (feeAmount > 0) {
-        const feeIdempotencyKey = require('uuid').v4();
+        const feeIdempotencyKey = randomUUID();
         const feeTransaction = await client.query(
           `INSERT INTO transactions
             (idempotency_key, type, status, amount, currency, metadata)
@@ -307,7 +308,7 @@ class EscrowService {
     try {
       await client.query('BEGIN');
 
-      const idempotencyKey = require('uuid').v4();
+      const idempotencyKey = randomUUID();
       const transaction = await client.query(
         `INSERT INTO transactions
           (idempotency_key, type, status, amount, currency, metadata)
@@ -402,7 +403,7 @@ class EscrowService {
     try {
       await client.query('BEGIN');
 
-      const idempotencyKey = require('uuid').v4();
+      const idempotencyKey = randomUUID();
       const transaction = await client.query(
         `INSERT INTO transactions
           (idempotency_key, type, status, amount, currency, metadata)
@@ -575,6 +576,24 @@ class EscrowService {
       escrowBalanceFormatted: `₦${(escrowBalance / 100).toFixed(2)}`,
       amountFormatted: `₦${(order.amount / 100).toFixed(2)}`
     };
+  }
+
+  // ── Get all escrow orders for a platform ─────────────────────
+  // Scoped through the buyer's account, since escrow_wallet
+  // accounts themselves carry no platform_id.
+  async getForPlatform(platformId, { status = null, limit = 50, offset = 0 } = {}) {
+    const result = await pool.query(
+      `SELECT eo.*
+       FROM escrow_orders eo
+       JOIN accounts buyer ON buyer.id = eo.buyer_account_id
+       WHERE buyer.platform_id = $1
+         AND ($2::varchar IS NULL OR eo.status = $2)
+       ORDER BY eo.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [platformId, status, limit, offset]
+    );
+
+    return result.rows;
   }
 }
 

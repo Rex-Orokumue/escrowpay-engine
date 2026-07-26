@@ -166,6 +166,29 @@ class EscrowController {
     }
   }
 
+  // GET /escrow/mine
+  async getMyEscrows(req, res) {
+    try {
+      const { status } = req.query;
+      const limit = parseInt(req.query.limit) || 50;
+      const offset = parseInt(req.query.offset) || 0;
+
+      const escrows = await escrowService.getForPlatform(req.platform.id, { status, limit, offset });
+
+      return res.status(200).json({
+        success: true,
+        data: escrows,
+        meta: { limit, offset, count: escrows.length }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
   // GET /escrow/:escrowId
   async getEscrowOrder(req, res) {
     try {

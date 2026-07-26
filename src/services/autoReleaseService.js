@@ -48,8 +48,8 @@ class AutoReleaseService {
       }
 
       const escrowOrder = escrowResult.rows[0];
-      const { v4: uuidv4 } = require('uuid');
-      const idempotencyKey = uuidv4();
+      const { randomUUID } = require('crypto');
+      const idempotencyKey = randomUUID();
 
       // Create release transaction
       const transaction = await client.query(
