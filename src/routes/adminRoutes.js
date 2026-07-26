@@ -14,5 +14,7 @@ router.get('/transactions', adminController.getAllTransactions);
 router.get('/ledger', adminController.getLedgerEntries);
 router.get('/disputes', adminController.getDisputes);
 router.post('/users', adminController.createUser);
+router.post('/disputes/:id/release', adminController.releaseDispute);
+router.post('/disputes/:id/refund', adminController.refundDispute);
 
 module.exports = router;

@@ -595,6 +595,106 @@ class EscrowService {
 
     return result.rows;
   }
+
+  // ── Admin: resolve a disputed escrow ─────────────────────────
+  // Called from the admin dashboard when arbitrating a dispute.
+  // Unlike releaseEscrow/refundEscrow, this requires status
+  // 'disputed' (not 'funded') and has no buyer-ownership check —
+  // an admin acts on the buyer's and seller's behalf here.
+  async resolveDispute({ escrowOrderId, resolution }) {
+    if (!['release', 'refund'].includes(resolution)) {
+      throw new Error(`Invalid resolution: ${resolution}. Must be 'release' or 'refund'.`);
+    }
+
+    const escrowOrder = await this.getEscrowOrder(escrowOrderId);
+
+    if (escrowOrder.status !== 'disputed') {
+      throw new Error(`Escrow order is ${escrowOrder.status}. Can only resolve a 'disputed' order.`);
+    }
+
+    const isRelease = resolution === 'release';
+    const debitAccountId = escrowOrder.escrow_account_id;
+    const creditAccountId = isRelease ? escrowOrder.seller_account_id : escrowOrder.buyer_account_id;
+    const newStatus = isRelease ? 'released' : 'refunded';
+    const timestampColumn = isRelease ? 'released_at' : 'refunded_at';
+    const transactionType = isRelease ? 'escrow_release' : 'escrow_refund';
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const idempotencyKey = randomUUID();
+      const transaction = await client.query(
+        `INSERT INTO transactions
+          (idempotency_key, type, status, amount, currency, metadata)
+         VALUES ($1, $2, 'pending', $3, $4, $5)
+         RETURNING *`,
+        [
+          idempotencyKey,
+          transactionType,
+          parseInt(escrowOrder.amount, 10),
+          escrowOrder.currency,
+          JSON.stringify({ escrowOrderId, description: `Admin ${resolution} for disputed order ${escrowOrderId}` })
+        ]
+      );
+
+      const transactionId = transaction.rows[0].id;
+
+      await ledgerService.createEntries({
+        transactionId,
+        debitAccountId,
+        creditAccountId,
+        amount: parseInt(escrowOrder.amount, 10)
+      }, client);
+
+      await client.query(
+        `UPDATE transactions SET status = 'completed' WHERE id = $1`,
+        [transactionId]
+      );
+
+      await client.query(
+        `UPDATE escrow_orders
+         SET status = $1, ${timestampColumn} = now()
+         WHERE id = $2`,
+        [newStatus, escrowOrderId]
+      );
+
+      await client.query('COMMIT');
+
+      const platform = await pool.query(
+        `SELECT platform_id FROM accounts WHERE id = $1`,
+        [escrowOrder.buyer_account_id]
+      );
+      if (platform.rows[0]?.platform_id) {
+        webhookService.fire({
+          platformId: platform.rows[0].platform_id,
+          eventType: isRelease ? 'escrow.released' : 'escrow.refunded',
+          payload: {
+            escrowOrderId,
+            transactionId,
+            amount: parseInt(escrowOrder.amount, 10),
+            resolvedBy: 'admin',
+            status: newStatus
+          }
+        });
+      }
+
+      return {
+        success: true,
+        escrowOrderId,
+        transactionId,
+        resolution,
+        status: newStatus
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = new EscrowService();

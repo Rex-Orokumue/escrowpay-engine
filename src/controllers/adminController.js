@@ -6,6 +6,7 @@
 // ============================================================
 
 const adminService = require('../services/adminService');
+const escrowService = require('../services/escrowService');
 
 class AdminController {
 
@@ -126,6 +127,38 @@ class AdminController {
       const user = await adminService.createPartnerUser({ platformId, email, password });
 
       return res.status(201).json({ success: true, data: user });
+    } catch (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /admin/disputes/:id/release
+  async releaseDispute(req, res) {
+    try {
+      const { id } = req.params;
+
+      const result = await escrowService.resolveDispute({
+        escrowOrderId: id,
+        resolution: 'release'
+      });
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /admin/disputes/:id/refund
+  async refundDispute(req, res) {
+    try {
+      const { id } = req.params;
+
+      const result = await escrowService.resolveDispute({
+        escrowOrderId: id,
+        resolution: 'refund'
+      });
+
+      return res.status(200).json({ success: true, data: result });
     } catch (error) {
       return res.status(400).json({ success: false, error: error.message });
     }
