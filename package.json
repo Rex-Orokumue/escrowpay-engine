@@ -9,7 +9,7 @@
     "migrate": "node database/migrate.js",
     "seed": "node database/seeds/001_create_system_account.js",
     "seed:fee": "node database/seeds/002_create_fee_wallet.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +27,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14"
   }
 }
