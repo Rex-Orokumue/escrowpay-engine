@@ -6,31 +6,59 @@
 // and attaches the platform context to req.platform.
 // ============================================================
 
+const jwt = require('jsonwebtoken');
 const platformRepository = require('../repositories/platformRepository');
 
 const authenticate = async (req, res, next) => {
   try {
     const apiKey = req.headers['x-api-key'];
 
-    if (!apiKey) {
-      return res.status(401).json({
-        success: false,
-        error: 'Missing API key. Include x-api-key header.'
-      });
+    if (apiKey) {
+      const platform = await platformRepository.findByApiKey(apiKey);
+
+      if (!platform) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or inactive API key.'
+        });
+      }
+
+      req.platform = platform;
+      return next();
     }
 
-    const platform = await platformRepository.findByApiKey(apiKey);
+    const authHeader = req.headers['authorization'];
 
-    if (!platform) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid or inactive API key.'
-      });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice('Bearer '.length);
+
+      let payload;
+      try {
+        payload = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or expired token.'
+        });
+      }
+
+      const platform = await platformRepository.findById(payload.platformId);
+
+      if (!platform || platform.status !== 'active') {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or inactive platform.'
+        });
+      }
+
+      req.platform = platform;
+      return next();
     }
 
-    // Attach platform context to every request
-    req.platform = platform;
-    next();
+    return res.status(401).json({
+      success: false,
+      error: 'Missing API key. Include x-api-key header.'
+    });
 
   } catch (error) {
     return res.status(500).json({
