@@ -28,6 +28,28 @@ class TransactionController {
     }
   }
 
+  // GET /transactions/mine
+  async getMyTransactions(req, res) {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const offset = parseInt(req.query.offset) || 0;
+
+      const transactions = await transactionService.getForPlatform(req.platform.id, limit, offset);
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+        meta: { limit, offset, count: transactions.length }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
   // GET /transactions/account/:accountId
   async getTransactionsForAccount(req, res) {
     try {

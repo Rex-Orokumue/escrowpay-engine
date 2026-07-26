@@ -199,6 +199,22 @@ class TransactionService {
 
     return result.rows;
   }
+
+  // ── Get all transactions for a platform ──────────────────────
+  async getForPlatform(platformId, limit = 50, offset = 0) {
+    const result = await pool.query(
+      `SELECT DISTINCT t.*
+       FROM transactions t
+       JOIN ledger_entries le ON le.transaction_id = t.id
+       JOIN accounts a ON a.id = le.account_id
+       WHERE a.platform_id = $1
+       ORDER BY t.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [platformId, limit, offset]
+    );
+
+    return result.rows;
+  }
 }
 
 module.exports = new TransactionService();

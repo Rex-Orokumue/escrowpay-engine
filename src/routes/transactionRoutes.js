@@ -12,6 +12,7 @@ router.use(apiLimiter);
 router.get('/ledger/health', transactionController.getLedgerHealth);
 router.get('/account/:accountId/ledger', transactionController.getLedgerForAccount);
 router.get('/account/:accountId', transactionController.getTransactionsForAccount);
+router.get('/mine', transactionController.getMyTransactions);
 router.get('/:transactionId', transactionController.getTransaction);
 
 module.exports = router;
