@@ -12,8 +12,7 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err.message);
-  process.exit(1);
+  console.error('❌ Database pool error (idle client):', err.message);
 });
 
 module.exports = pool;
