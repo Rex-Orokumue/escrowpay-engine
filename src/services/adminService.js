@@ -48,7 +48,16 @@ class AdminService {
 
   // ── All wallets across all platforms ─────────────────────────
   async getAllWallets(limit = 50, offset = 0) {
-    return accountRepository.findAllWithPlatform(limit, offset);
+    const accounts = await accountRepository.findAllWithPlatform(limit, offset);
+
+    return Promise.all(accounts.map(async (account) => {
+      const balance = await ledgerService.getBalance(account.id);
+      return {
+        ...account,
+        balance,
+        balanceFormatted: `₦${(balance / 100).toFixed(2)}`
+      };
+    }));
   }
 
   // ── All escrow orders, optionally filtered by status ─────────

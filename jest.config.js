@@ -1,12 +1,14 @@
 module.exports = {
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/jest.setup.js'],
-  testMatch: ['**/tests/**/*.test.js'],
   // Git worktrees created under .claude/worktrees/ (or worktrees/) live
   // inside this repo's own directory tree, each with its own full copy of
-  // tests/. Without this, testMatch picks up both copies and runs every
-  // test twice against the same shared database.
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/worktrees/', '/worktrees/'],
+  // tests/. `roots` scopes discovery to this config's own tests/ folder
+  // only, so it never crawls into a nested worktree's copy — unlike a
+  // testPathIgnorePatterns blocklist, this also works correctly when the
+  // cwd IS itself such a worktree (its own tests/ is still <rootDir>/tests).
+  roots: ['<rootDir>/tests'],
+  testMatch: ['**/*.test.js'],
   forceExit: true,
   // These are integration tests against a real remote Supabase Postgres
   // instance, not a mock. Default 5000ms is too tight once several test
