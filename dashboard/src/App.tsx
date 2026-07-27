@@ -1,9 +1,16 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import LoginPage from './auth/LoginPage';
 import { ApiError } from './api/client';
+import Sidebar from './components/Sidebar';
+import Overview from './pages/Overview';
+import Wallets from './pages/Wallets';
+import Escrow from './pages/Escrow';
+import Transactions from './pages/Transactions';
+import Disputes from './pages/Disputes';
+import Ledger from './pages/Ledger';
 
 function QueryProvider({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
@@ -19,7 +26,17 @@ function QueryProvider({ children }: { children: ReactNode }) {
               logoutRef.current();
             }
           }
-        })
+        }),
+        defaultOptions: {
+          queries: {
+            // A 401 means the stored credential is bad — retrying with the
+            // same credential can never succeed, and it would also delay
+            // the onError-triggered logout above by several seconds of
+            // exponential backoff for no benefit.
+            retry: (failureCount, error) =>
+              !(error instanceof ApiError && error.status === 401) && failureCount < 3
+          }
+        }
       })
   );
 
@@ -32,17 +49,20 @@ function AuthedShell() {
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-64 bg-surface-2 border-r border-border p-6">
-        <div className="font-display text-lg mb-8">EscrowPay Engine</div>
-        <nav className="flex flex-col gap-1 text-sm text-muted">
-          <span>Overview</span>
-        </nav>
-        <button onClick={logout} className="mt-auto text-sm text-muted underline">
-          Log out
-        </button>
-      </aside>
+      <Sidebar role={credential.role} onLogout={logout} />
       <main className="flex-1 p-8">
-        <h1>Overview</h1>
+        <Routes>
+          <Route path="/overview" element={<Overview />} />
+          <Route path="/wallets" element={<Wallets />} />
+          <Route path="/escrow" element={<Escrow />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/disputes" element={<Disputes />} />
+          <Route
+            path="/ledger"
+            element={credential.role === 'admin' ? <Ledger /> : <Navigate to="/overview" replace />}
+          />
+          <Route path="*" element={<Navigate to="/overview" replace />} />
+        </Routes>
       </main>
     </div>
   );
@@ -55,11 +75,7 @@ function Shell() {
     return <LoginPage onLogin={login} />;
   }
 
-  return (
-    <Routes>
-      <Route path="*" element={<AuthedShell />} />
-    </Routes>
-  );
+  return <AuthedShell />;
 }
 
 export default function App() {
