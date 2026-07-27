@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EscrowPay Engine — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0F172A;
+  --surface: #1E293B;
+  --surface-2: #0F1629;
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(59,130,246,0.3);
+  --blue: #3B82F6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --blue-glow: rgba(59,130,246,0.3);
+  --orange: #FFA600;
+  --orange-dim: rgba(255,166,0,0.10);
+  --green: #34D399;
+  --green-dim: rgba(52,211,153,0.10);
+  --red: #F87171;
+  --red-dim: rgba(248,113,113,0.10);
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --muted-2: #64748B;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Screen tabs ── */
+.screen-tabs {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 44px;
+  background: #060d1f;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  z-index: 1000;
+}
+.tab {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tab:hover { color: var(--text); border-color: var(--border); }
+.tab.active { background: var(--blue-dim); color: var(--blue); border-color: var(--blue-glow); }
+.tab-label { font-size: 11px; color: var(--muted-2); padding: 0 8px; }
+
+/* ── Layout ── */
+.screen { display: none; padding-top: 44px; min-height: 100vh; }
+.screen.active { display: flex; }
+
+.sidebar {
+  width: 260px;
+  min-height: calc(100vh - 44px);
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 44px;
+  height: calc(100vh - 44px);
+  overflow-y: auto;
+}
+
+.logo-box {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+}
+.logo-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+}
+.logo-text { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; }
+.logo-sub { font-size: 9px; color: var(--muted-2); letter-spacing: 0.15em; text-transform: uppercase; }
+
+.nav-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted-2); padding: 12px 12px 6px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--muted); font-size: 13px;
+  cursor: pointer; transition: all .2s;
+  user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-item.active {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue-glow);
+  font-weight: 600;
+}
+.nav-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: 1.5px solid currentColor; flex-shrink: 0;
+}
+.nav-item.active .nav-dot { background: var(--blue); border-color: var(--blue); }
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.status-box {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+}
+.status-row { display: flex; align-items: center; gap: 8px; }
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
+.status-text { font-size: 11px; font-weight: 600; color: var(--green); }
+.status-ver { font-size: 10px; color: var(--muted-2); margin-top: 4px; font-family: var(--mono); }
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 44px);
+  overflow: hidden;
+}
+
+.top-bar {
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36px;
+  flex-shrink: 0;
+}
+.top-bar-left h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 800;
+}
+.top-bar-left p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.env-badge {
+  padding: 5px 14px;
+  border-radius: 8px;
+  background: var(--green-dim);
+  border: 1px solid rgba(52,211,153,0.25);
+  font-size: 11px; font-weight: 700;
+  color: var(--green);
+  display: flex; align-items: center; gap: 6px;
+}
+.env-badge::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+}
+
+.content { padding: 28px 36px; flex: 1; overflow-y: auto; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+}
+.stat-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 32px; font-weight: 800;
+  line-height: 1;
+}
+.stat-sub { font-size: 11px; margin-top: 8px; }
+.stat-card.danger { border-color: rgba(248,113,113,0.2); }
+
+/* ── Section header ── */
+.section-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 800;
+}
+.section-link {
+  font-size: 12px; color: var(--blue); cursor: pointer;
+}
+
+/* ── Table ── */
+.table-card {
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead tr {
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+}
+th {
+  padding: 12px 16px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); text-align: left;
+}
+td {
+  padding: 14px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.mono { font-family: var(--mono); font-size: 11px; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+}
+.badge.green { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.2); }
+.badge.orange { background: var(--orange-dim); color: var(--orange); border-color: rgba(255,166,0,0.2); }
+.badge.red { background: var(--red-dim); color: var(--red); border-color: rgba(248,113,113,0.2); }
+.badge.blue { background: var(--blue-dim); color: var(--blue); border-color: rgba(59,130,246,0.2); }
+.badge.muted { background: rgba(148,163,184,0.08); color: var(--muted); border-color: rgba(148,163,184,0.15); }
+
+.dir-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 22px; border-radius: 6px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+}
+.dir-badge.dr { background: var(--red-dim); color: var(--red); }
+.dir-badge.cr { background: var(--green-dim); color: var(--green); }
+
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-label-text { font-size: 12px; color: var(--muted); margin-right: 4px; }
+.filter-chip {
+  padding: 4px 12px; border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 12px; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.filter-chip.active {
+  background: var(--blue-dim); color: var(--blue);
+  border-color: var(--blue-glow);
+}
+.filter-chip.orange.active { background: var(--orange-dim); color: var(--orange); border-color: rgba(255,166,0,0.3); }
+.filter-chip.red.active { background: var(--red-dim); color: var(--red); border-color: rgba(248,113,113,0.3); }
+.filter-chip.green.active { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.3); }
+
+/* ── Search input ── */
+.search-input {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  outline: none;
+  width: 240px;
+  margin-left: auto;
+}
+.search-input::placeholder { color: var(--muted-2); }
+.search-input:focus { border-color: var(--blue-glow); }
+
+/* ── Wallet card ── */
+.wallet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.wallet-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  transition: border-color .2s;
+}
+.wallet-card:hover { border-color: var(--blue-glow); }
+.wallet-card-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.wallet-avatar {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--blue-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 800; color: var(--blue);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+.wallet-balance {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 4px;
+}
+.wallet-id {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--muted-2);
+}
+.wallet-footer {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.wallet-stat { font-size: 11px; color: var(--muted); }
+.wallet-stat strong { color: var(--text); display: block; font-size: 13px; }
+
+/* ── Escrow row ── */
+.escrow-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.escrow-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--orange);
+}
+
+/* ── Dispute card ── */
+.dispute-card {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  transition: border-color .2s;
+}
+.dispute-card:hover { border-color: rgba(248,113,113,0.3); }
+.dispute-card.urgent { border-color: rgba(248,113,113,0.25); }
+.dispute-number {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--muted-2);
+  margin-bottom: 6px;
+}
+.dispute-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.dispute-meta {
+  display: flex; align-items: center;
+  gap: 12px; flex-wrap: wrap;
+}
+.dispute-meta-item { font-size: 11px; color: var(--muted); }
+.dispute-meta-item strong { color: var(--text); }
+.dispute-actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+.btn-sm {
+  padding: 6px 14px; border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 12px; font-weight: 500;
+  color: var(--muted); cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all .2s;
+}
+.btn-sm:hover { border-color: var(--blue-glow); color: var(--blue); }
+.btn-sm.danger:hover { border-color: rgba(248,113,113,0.4); color: var(--red); }
+.btn-sm.primary { background: var(--blue-dim); color: var(--blue); border-color: var(--blue-glow); }
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.pagination-text { font-size: 12px; color: var(--muted); }
+.pagination-btn {
+  padding: 5px 14px; border-radius: 7px;
+  border: 1px solid var(--blue-glow);
+  background: var(--blue-dim);
+  color: var(--blue); font-size: 12px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+
+/* ── Summary cards row (3-col) ── */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* ── Two col layout ── */
+.two-col { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.one-col { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Amount colored ── */
+.amount-green { color: var(--green); font-weight: 700; font-family: var(--mono); }
+.amount-red { color: var(--red); font-weight: 700; font-family: var(--mono); }
+.amount-orange { color: var(--orange); font-weight: 700; font-family: var(--mono); }
+.amount-blue { color: var(--blue); font-weight: 700; font-family: var(--mono); }
+.text-muted { color: var(--muted); }
+.text-mono { font-family: var(--mono); font-size: 11px; }
+
+/* ── DR row / CR row ── */
+tr.dr-row td { background: rgba(248,113,113,0.025); }
+tr.cr-row td { background: rgba(52,211,153,0.025); }
+</style>
+</head>
+<body>
+
+<!-- Screen tabs -->
+<div class="screen-tabs">
+  <span class="tab-label">EscrowPay Dashboard</span>
+  <button class="tab active" onclick="showScreen('wallets')">💳 Wallet Management</button>
+  <button class="tab" onclick="showScreen('escrow')">🔒 Escrow Management</button>
+  <button class="tab" onclick="showScreen('transactions')">📋 Transactions</button>
+  <button class="tab" onclick="showScreen('disputes')">⚠ Disputes</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCREEN 1 — WALLET MANAGEMENT
+═════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-wallets">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo-box">
+      <div class="logo-dot"></div>
+      <div>
+        <div class="logo-text">EscrowPay</div>
+        <div class="logo-sub">Engine</div>
+      </div>
+    </div>
+    <div class="nav-label">Navigation</div>
+    <div class="nav-item"><div class="nav-dot"></div>Overview</div>
+    <div class="nav-item"><div class="nav-dot"></div>Ledger</div>
+    <div class="nav-item active"><div class="nav-dot"></div>Wallets</div>
+    <div class="nav-item"><div class="nav-dot"></div>Escrow</div>
+    <div class="nav-item"><div class="nav-dot"></div>Transactions</div>
+    <div class="nav-item"><div class="nav-dot"></div>Disputes</div>
+    <div class="sidebar-bottom">
+      <div class="status-box">
+        <div class="status-row">
+          <div class="status-dot"></div>
+          <div class="status-text">All Systems Operational</div>
+        </div>
+        <div class="status-ver">v1.0.0 · Production</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h2>Wallet Management</h2>
+        <p>All user wallets — balances computed from ledger entries in real time</p>
+      </div>
+      <div class="env-badge">Production</div>
+    </div>
+    <div class="content">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Wallets</div>
+          <div class="stat-value" style="color:var(--text)">1,284</div>
+          <div class="stat-sub" style="color:var(--green)">↑ 12 new this week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Balance Held</div>
+          <div class="stat-value" style="color:var(--blue)">₦24.6M</div>
+          <div class="stat-sub" style="color:var(--muted)">Across all wallets</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Wallets</div>
+          <div class="stat-value" style="color:var(--green)">1,201</div>
+          <div class="stat-sub" style="color:var(--muted)">93.5% of total</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Suspended</div>
+          <div class="stat-value" style="color:var(--red)">83</div>
+          <div class="stat-sub" style="color:var(--red)">Requires review</div>
+        </div>
+      </div>
+
+      <!-- Wallet cards -->
+      <div class="section-header">
+        <div class="section-title">Recent Wallets</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="search-input" placeholder="Search by wallet ID or user..." style="margin-left:0">
+          <div class="filter-chip active">All</div>
+          <div class="filter-chip">Active</div>
+          <div class="filter-chip red">Suspended</div>
+        </div>
+      </div>
+
+      <div class="wallet-grid">
+        <!-- Card 1 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar">CE</div>
+            <span class="badge green">Active</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--text)">₦120,000.00</div>
+          <div class="wallet-id">ZLX-441-7823</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>Chukwuemeka Daniel</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--green)">14</strong>transactions</div>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar" style="background:var(--orange-dim);color:var(--orange);border-color:rgba(255,166,0,0.2)">TV</div>
+            <span class="badge green">Active</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--text)">₦843,200.00</div>
+          <div class="wallet-id">ZLX-882-4410</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>TechVault Store</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--green)">47</strong>transactions</div>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar" style="background:var(--red-dim);color:var(--red);border-color:rgba(248,113,113,0.2)">AM</div>
+            <span class="badge red">Suspended</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--muted)">₦0.00</div>
+          <div class="wallet-id">ZLX-229-0031</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>Amara Obi</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--red)">3</strong>transactions</div>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar" style="background:rgba(52,211,153,0.1);color:var(--green);border-color:rgba(52,211,153,0.2)">KA</div>
+            <span class="badge green">Active</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--text)">₦55,400.00</div>
+          <div class="wallet-id">ZLX-773-9921</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>Kelechi Ade</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--green)">8</strong>transactions</div>
+          </div>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar">BO</div>
+            <span class="badge green">Active</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--text)">₦1,200,000.00</div>
+          <div class="wallet-id">ZLX-118-5540</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>Bright Okoye</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--green)">29</strong>transactions</div>
+          </div>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="wallet-card">
+          <div class="wallet-card-header">
+            <div class="wallet-avatar" style="background:rgba(167,139,250,0.1);color:#C4B5FD;border-color:rgba(167,139,250,0.2)">NE</div>
+            <span class="badge green">Active</span>
+          </div>
+          <div class="wallet-balance" style="color:var(--text)">₦388,750.00</div>
+          <div class="wallet-id">ZLX-664-2281</div>
+          <div class="wallet-footer">
+            <div class="wallet-stat"><strong>Ngozi Eze</strong>user_wallet</div>
+            <div class="wallet-stat" style="text-align:right"><strong style="color:var(--green)">21</strong>transactions</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full wallet table -->
+      <div class="section-header">
+        <div class="section-title">All Wallets</div>
+        <div class="section-link">Export CSV →</div>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Wallet ID</th>
+                <th>User</th>
+                <th>Type</th>
+                <th>Currency</th>
+                <th>Balance</th>
+                <th>Transactions</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">ZLX-441-7823</td>
+                <td><div style="font-weight:600">Chukwuemeka Daniel</div></td>
+                <td><span class="badge blue">user_wallet</span></td>
+                <td class="mono">NGN</td>
+                <td class="amount-green">₦120,000.00</td>
+                <td class="mono" style="color:var(--muted)">14</td>
+                <td><span class="badge green">Active</span></td>
+                <td class="text-muted mono">01 Jan 2026</td>
+              </tr>
+              <tr>
+                <td class="mono">ZLX-882-4410</td>
+                <td><div style="font-weight:600">TechVault Store</div></td>
+                <td><span class="badge blue">user_wallet</span></td>
+                <td class="mono">NGN</td>
+                <td class="amount-green">₦843,200.00</td>
+                <td class="mono" style="color:var(--muted)">47</td>
+                <td><span class="badge green">Active</span></td>
+                <td class="text-muted mono">15 Dec 2025</td>
+              </tr>
+              <tr>
+                <td class="mono">ZLX-229-0031</td>
+                <td><div style="font-weight:600">Amara Obi</div></td>
+                <td><span class="badge blue">user_wallet</span></td>
+                <td class="mono">NGN</td>
+                <td class="amount-red">₦0.00</td>
+                <td class="mono" style="color:var(--muted)">3</td>
+                <td><span class="badge red">Suspended</span></td>
+                <td class="text-muted mono">08 Feb 2026</td>
+              </tr>
+              <tr>
+                <td class="mono">ESC-789-0001</td>
+                <td><div style="font-weight:600">Order #ZLX-8821</div></td>
+                <td><span class="badge orange">escrow_wallet</span></td>
+                <td class="mono">NGN</td>
+                <td class="amount-orange">₦85,000.00</td>
+                <td class="mono" style="color:var(--muted)">2</td>
+                <td><span class="badge orange">Funded</span></td>
+                <td class="text-muted mono">17 Mar 2026</td>
+              </tr>
+              <tr>
+                <td class="mono">ZLX-773-9921</td>
+                <td><div style="font-weight:600">Kelechi Ade</div></td>
+                <td><span class="badge blue">user_wallet</span></td>
+                <td class="mono">NGN</td>
+                <td class="amount-green">₦55,400.00</td>
+                <td class="mono" style="color:var(--muted)">8</td>
+                <td><span class="badge green">Active</span></td>
+                <td class="text-muted mono">22 Jan 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-text">Showing 1–5 of 1,284 wallets</span>
+          <button class="pagination-btn">Next →</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCREEN 2 — ESCROW MANAGEMENT
+═════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-escrow">
+  <aside class="sidebar">
+    <div class="logo-box">
+      <div class="logo-dot"></div>
+      <div><div class="logo-text">EscrowPay</div><div class="logo-sub">Engine</div></div>
+    </div>
+    <div class="nav-label">Navigation</div>
+    <div class="nav-item"><div class="nav-dot"></div>Overview</div>
+    <div class="nav-item"><div class="nav-dot"></div>Ledger</div>
+    <div class="nav-item"><div class="nav-dot"></div>Wallets</div>
+    <div class="nav-item active"><div class="nav-dot"></div>Escrow</div>
+    <div class="nav-item"><div class="nav-dot"></div>Transactions</div>
+    <div class="nav-item"><div class="nav-dot"></div>Disputes</div>
+    <div class="sidebar-bottom">
+      <div class="status-box">
+        <div class="status-row"><div class="status-dot"></div><div class="status-text">All Systems Operational</div></div>
+        <div class="status-ver">v1.0.0 · Production</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h2>Escrow Management</h2>
+        <p>All escrow orders — one dedicated ledger account per order</p>
+      </div>
+      <div class="env-badge">Production</div>
+    </div>
+    <div class="content">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Orders</div>
+          <div class="stat-value" style="color:var(--text)">284</div>
+          <div class="stat-sub" style="color:var(--muted)">All time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Currently Funded</div>
+          <div class="stat-value" style="color:var(--orange)">47</div>
+          <div class="stat-sub" style="color:var(--orange)">₦8.4M locked</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Released</div>
+          <div class="stat-value" style="color:var(--green)">231</div>
+          <div class="stat-sub" style="color:var(--green)">81.3% success rate</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Disputed</div>
+          <div class="stat-value" style="color:var(--red)">6</div>
+          <div class="stat-sub" style="color:var(--red)">Funds frozen</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <span class="filter-label-text">Status:</span>
+        <div class="filter-chip active">All Orders</div>
+        <div class="filter-chip orange">Funded</div>
+        <div class="filter-chip green">Released</div>
+        <div class="filter-chip red">Disputed</div>
+        <div class="filter-chip">Refunded</div>
+        <input class="search-input" placeholder="Search by order ID or product...">
+      </div>
+
+      <!-- Escrow table -->
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Escrow ID</th>
+                <th>Product</th>
+                <th>Buyer</th>
+                <th>Seller</th>
+                <th>Amount</th>
+                <th>Escrow Account</th>
+                <th>Status</th>
+                <th>Days Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="color:var(--orange)">ESC-2024-8821</td>
+                <td><div style="font-weight:600">iPhone 15 Pro Max 256GB</div></td>
+                <td class="text-muted">Chukwuemeka D.</td>
+                <td class="text-muted">TechVault Store</td>
+                <td class="amount-orange">₦85,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-789-0001</td>
+                <td><span class="badge orange">Funded</span></td>
+                <td class="mono" style="color:var(--orange)">2 days</td>
+                <td>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn-sm primary">Release</button>
+                    <button class="btn-sm danger">Dispute</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--orange)">ESC-2024-8820</td>
+                <td><div style="font-weight:600">Samsung Galaxy S24 Ultra</div></td>
+                <td class="text-muted">Bright Okoye</td>
+                <td class="text-muted">TechVault Store</td>
+                <td class="amount-orange">₦120,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-788-0002</td>
+                <td><span class="badge orange">Funded</span></td>
+                <td class="mono" style="color:var(--orange)">1 day</td>
+                <td>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn-sm primary">Release</button>
+                    <button class="btn-sm danger">Dispute</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--red)">ESC-2024-8819</td>
+                <td><div style="font-weight:600">MacBook Pro M3 14" 512GB</div></td>
+                <td class="text-muted">Ngozi Eze</td>
+                <td class="text-muted">AppleHub NG</td>
+                <td class="amount-red">₦680,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-787-0003</td>
+                <td><span class="badge red">Disputed</span></td>
+                <td class="mono" style="color:var(--red)">5 days</td>
+                <td>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn-sm primary">Review</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--green)">ESC-2024-8818</td>
+                <td><div style="font-weight:600">PS5 Console + 2 Controllers</div></td>
+                <td class="text-muted">Kelechi Ade</td>
+                <td class="text-muted">GameZone NG</td>
+                <td class="amount-green">₦250,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-786-0004</td>
+                <td><span class="badge green">Released</span></td>
+                <td class="mono" style="color:var(--muted)">—</td>
+                <td><button class="btn-sm">View</button></td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--green)">ESC-2024-8817</td>
+                <td><div style="font-weight:600">Dyson Airwrap Complete</div></td>
+                <td class="text-muted">Amara Obi</td>
+                <td class="text-muted">LuxeBeauty</td>
+                <td class="amount-green">₦180,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-785-0005</td>
+                <td><span class="badge green">Released</span></td>
+                <td class="mono" style="color:var(--muted)">—</td>
+                <td><button class="btn-sm">View</button></td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--muted)">ESC-2024-8816</td>
+                <td><div style="font-weight:600">Nintendo Switch OLED</div></td>
+                <td class="text-muted">Emeka Nwachukwu</td>
+                <td class="text-muted">GameZone NG</td>
+                <td class="amount-orange">₦95,000</td>
+                <td class="mono" style="color:var(--muted-2)">ESC-784-0006</td>
+                <td><span class="badge orange">Funded</span></td>
+                <td class="mono" style="color:var(--orange)">3 days</td>
+                <td>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn-sm primary">Release</button>
+                    <button class="btn-sm danger">Dispute</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-text">Showing 1–6 of 284 escrow orders</span>
+          <button class="pagination-btn">Next →</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCREEN 3 — TRANSACTIONS
+═════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-transactions">
+  <aside class="sidebar">
+    <div class="logo-box">
+      <div class="logo-dot"></div>
+      <div><div class="logo-text">EscrowPay</div><div class="logo-sub">Engine</div></div>
+    </div>
+    <div class="nav-label">Navigation</div>
+    <div class="nav-item"><div class="nav-dot"></div>Overview</div>
+    <div class="nav-item"><div class="nav-dot"></div>Ledger</div>
+    <div class="nav-item"><div class="nav-dot"></div>Wallets</div>
+    <div class="nav-item"><div class="nav-dot"></div>Escrow</div>
+    <div class="nav-item active"><div class="nav-dot"></div>Transactions</div>
+    <div class="nav-item"><div class="nav-dot"></div>Disputes</div>
+    <div class="sidebar-bottom">
+      <div class="status-box">
+        <div class="status-row"><div class="status-dot"></div><div class="status-text">All Systems Operational</div></div>
+        <div class="status-ver">v1.0.0 · Production</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h2>Transactions</h2>
+        <p>Complete transaction log — every financial operation with full audit trail</p>
+      </div>
+      <div class="env-badge">Production</div>
+    </div>
+    <div class="content">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Transactions</div>
+          <div class="stat-value" style="color:var(--text)">12,441</div>
+          <div class="stat-sub" style="color:var(--green)">↑ 84 today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Volume Today</div>
+          <div class="stat-value" style="color:var(--blue)">₦2.1M</div>
+          <div class="stat-sub" style="color:var(--muted)">Across 84 transactions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Completed</div>
+          <div class="stat-value" style="color:var(--green)">12,388</div>
+          <div class="stat-sub" style="color:var(--green)">99.6% success rate</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Failed</div>
+          <div class="stat-value" style="color:var(--red)">53</div>
+          <div class="stat-sub" style="color:var(--muted)">All rolled back</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <span class="filter-label-text">Type:</span>
+        <div class="filter-chip active">All</div>
+        <div class="filter-chip orange">Escrow Fund</div>
+        <div class="filter-chip green">Escrow Release</div>
+        <div class="filter-chip blue">Transfer</div>
+        <div class="filter-chip">Deposit</div>
+        <div class="filter-chip red">Withdrawal</div>
+        <input class="search-input" placeholder="Search by TXN ID or amount...">
+      </div>
+
+      <!-- Transaction table -->
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TXN ID</th>
+                <th>Type</th>
+                <th>From Account</th>
+                <th>To Account</th>
+                <th>Amount</th>
+                <th>Idempotency Key</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00142</td>
+                <td><span class="badge orange">escrow_fund</span></td>
+                <td class="text-mono text-muted">buyer_wallet · A1</td>
+                <td class="text-mono" style="color:var(--orange)">escrow_789 · A3</td>
+                <td class="amount-orange">₦85,000</td>
+                <td class="text-mono text-muted">8f2a91c4-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">17 Mar · 10:42:31</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00141</td>
+                <td><span class="badge blue">transfer</span></td>
+                <td class="text-mono text-muted">buyer_wallet · A1</td>
+                <td class="text-mono text-muted">seller_wallet · A2</td>
+                <td class="amount-green">₦3,500</td>
+                <td class="text-mono text-muted">7e1b82d3-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">17 Mar · 09:15:44</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00140</td>
+                <td><span class="badge red">withdrawal</span></td>
+                <td class="text-mono text-muted">buyer_wallet · A1</td>
+                <td class="text-mono text-muted">system_bank · SYS</td>
+                <td class="amount-red">₦20,000</td>
+                <td class="text-mono text-muted">6d0c71e2-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">16 Mar · 14:30:02</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00139</td>
+                <td><span class="badge green">escrow_release</span></td>
+                <td class="text-mono" style="color:var(--orange)">escrow_786 · A6</td>
+                <td class="text-mono text-muted">seller_wallet · A4</td>
+                <td class="amount-green">₦250,000</td>
+                <td class="text-mono text-muted">5c9b60f1-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">16 Mar · 11:00:18</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00138</td>
+                <td><span class="badge blue">deposit</span></td>
+                <td class="text-mono text-muted">system_bank · SYS</td>
+                <td class="text-mono text-muted">buyer_wallet · A1</td>
+                <td class="amount-green">₦5,000</td>
+                <td class="text-mono text-muted">4b8a50e0-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">17 Mar · 08:00:12</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00137</td>
+                <td><span class="badge orange">escrow_fund</span></td>
+                <td class="text-mono text-muted">buyer_wallet · A5</td>
+                <td class="text-mono" style="color:var(--orange)">escrow_788 · A8</td>
+                <td class="amount-orange">₦120,000</td>
+                <td class="text-mono text-muted">3a7940df-...</td>
+                <td><span class="badge green">Completed</span></td>
+                <td class="text-muted mono">16 Mar · 09:44:55</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--blue)">TXN-00136</td>
+                <td><span class="badge red">withdrawal</span></td>
+                <td class="text-mono text-muted">seller_wallet · A2</td>
+                <td class="text-mono text-muted">system_bank · SYS</td>
+                <td class="amount-red">₦843,200</td>
+                <td class="text-mono text-muted">2960 30ce-...</td>
+                <td><span class="badge muted">Failed</span></td>
+                <td class="text-muted mono">15 Mar · 22:11:04</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-text">Showing 1–7 of 12,441 transactions</span>
+          <button class="pagination-btn">Next →</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCREEN 4 — DISPUTES
+═════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-disputes">
+  <aside class="sidebar">
+    <div class="logo-box">
+      <div class="logo-dot"></div>
+      <div><div class="logo-text">EscrowPay</div><div class="logo-sub">Engine</div></div>
+    </div>
+    <div class="nav-label">Navigation</div>
+    <div class="nav-item"><div class="nav-dot"></div>Overview</div>
+    <div class="nav-item"><div class="nav-dot"></div>Ledger</div>
+    <div class="nav-item"><div class="nav-dot"></div>Wallets</div>
+    <div class="nav-item"><div class="nav-dot"></div>Escrow</div>
+    <div class="nav-item"><div class="nav-dot"></div>Transactions</div>
+    <div class="nav-item active"><div class="nav-dot"></div>Disputes</div>
+    <div class="sidebar-bottom">
+      <div class="status-box">
+        <div class="status-row"><div class="status-dot"></div><div class="status-text">All Systems Operational</div></div>
+        <div class="status-ver">v1.0.0 · Production</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h2>Disputes</h2>
+        <p>Active dispute cases — funds frozen in escrow pending admin resolution</p>
+      </div>
+      <div class="env-badge">Production</div>
+    </div>
+    <div class="content">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card danger">
+          <div class="stat-label">Open Disputes</div>
+          <div class="stat-value" style="color:var(--red)">3</div>
+          <div class="stat-sub" style="color:var(--red)">Requires review</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Funds Frozen</div>
+          <div class="stat-value" style="color:var(--orange)">₦955K</div>
+          <div class="stat-sub" style="color:var(--orange)">Locked in escrow</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Resolved This Month</div>
+          <div class="stat-value" style="color:var(--green)">8</div>
+          <div class="stat-sub" style="color:var(--green)">Avg 3.2 days resolution</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Refunded to Buyers</div>
+          <div class="stat-value" style="color:var(--blue)">5</div>
+          <div class="stat-sub" style="color:var(--muted)">Out of 8 resolved</div>
+        </div>
+      </div>
+
+      <!-- Urgent banner -->
+      <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+        <div style="font-size:18px">⚠</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--red)">1 dispute requires immediate attention</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">ESC-2024-8819 has been open for 5 days — SLA breach imminent</div>
+        </div>
+        <button class="btn-sm primary" style="margin-left:auto">Review Now</button>
+      </div>
+
+      <!-- Dispute cards -->
+      <div class="section-header">
+        <div class="section-title">Open Disputes</div>
+        <div style="display:flex;gap:8px">
+          <div class="filter-chip active">All Open</div>
+          <div class="filter-chip red">Urgent</div>
+          <div class="filter-chip">Under Review</div>
+        </div>
+      </div>
+
+      <!-- Dispute 1 — URGENT -->
+      <div class="dispute-card urgent">
+        <div style="flex:1">
+          <div class="dispute-number">ESC-2024-8819 · Dispute #DSP-003</div>
+          <div class="dispute-title">MacBook Pro M3 14" 512GB — Item not received</div>
+          <div class="dispute-meta">
+            <div class="dispute-meta-item">Buyer: <strong>Ngozi Eze</strong></div>
+            <div class="dispute-meta-item">Seller: <strong>AppleHub NG</strong></div>
+            <div class="dispute-meta-item">Amount: <strong style="color:var(--red)">₦680,000 frozen</strong></div>
+            <div class="dispute-meta-item">Opened: <strong>12 Mar 2026</strong></div>
+            <div class="dispute-meta-item">Days open: <strong style="color:var(--red)">5 days ⚠</strong></div>
+            <span class="badge red">Urgent</span>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;background:rgba(248,113,113,0.06);border-radius:8px;border-left:3px solid var(--red)">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px">Buyer's Reason</div>
+            <div style="font-size:12px;color:var(--muted)">Item was ordered 8 days ago. Seller claims it was shipped but no tracking number was provided. Buyer has not received the item.</div>
+          </div>
+        </div>
+        <div class="dispute-actions" style="flex-direction:column;gap:8px;min-width:120px">
+          <button class="btn-sm primary" style="width:100%;text-align:center">Release to Seller</button>
+          <button class="btn-sm" style="width:100%;text-align:center">Refund Buyer</button>
+          <button class="btn-sm" style="width:100%;text-align:center;color:var(--muted)">Request Evidence</button>
+        </div>
+      </div>
+
+      <!-- Dispute 2 -->
+      <div class="dispute-card">
+        <div style="flex:1">
+          <div class="dispute-number">ESC-2024-8812 · Dispute #DSP-002</div>
+          <div class="dispute-title">Canon EOS R50 Camera Kit — Wrong item delivered</div>
+          <div class="dispute-meta">
+            <div class="dispute-meta-item">Buyer: <strong>Tunde Bakare</strong></div>
+            <div class="dispute-meta-item">Seller: <strong>PhotoGear NG</strong></div>
+            <div class="dispute-meta-item">Amount: <strong style="color:var(--orange)">₦180,000 frozen</strong></div>
+            <div class="dispute-meta-item">Opened: <strong>15 Mar 2026</strong></div>
+            <div class="dispute-meta-item">Days open: <strong style="color:var(--muted)">2 days</strong></div>
+            <span class="badge orange">Under Review</span>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;background:rgba(255,166,0,0.05);border-radius:8px;border-left:3px solid var(--orange)">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Buyer's Reason</div>
+            <div style="font-size:12px;color:var(--muted)">Ordered Canon R50 but received a Canon R10 instead. Item was sealed but incorrect model. Seller is yet to respond.</div>
+          </div>
+        </div>
+        <div class="dispute-actions" style="flex-direction:column;gap:8px;min-width:120px">
+          <button class="btn-sm primary" style="width:100%;text-align:center">Release to Seller</button>
+          <button class="btn-sm" style="width:100%;text-align:center">Refund Buyer</button>
+          <button class="btn-sm" style="width:100%;text-align:center;color:var(--muted)">Request Evidence</button>
+        </div>
+      </div>
+
+      <!-- Dispute 3 -->
+      <div class="dispute-card">
+        <div style="flex:1">
+          <div class="dispute-number">ESC-2024-8808 · Dispute #DSP-001</div>
+          <div class="dispute-title">Fendi Tote Bag Authentic — Item is damaged or defective</div>
+          <div class="dispute-meta">
+            <div class="dispute-meta-item">Buyer: <strong>Adaeze Okonkwo</strong></div>
+            <div class="dispute-meta-item">Seller: <strong>LuxeFashion</strong></div>
+            <div class="dispute-meta-item">Amount: <strong style="color:var(--orange)">₦95,000 frozen</strong></div>
+            <div class="dispute-meta-item">Opened: <strong>16 Mar 2026</strong></div>
+            <div class="dispute-meta-item">Days open: <strong style="color:var(--muted)">1 day</strong></div>
+            <span class="badge orange">Under Review</span>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;background:rgba(255,166,0,0.05);border-radius:8px;border-left:3px solid var(--orange)">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Buyer's Reason</div>
+            <div style="font-size:12px;color:var(--muted)">Bag arrived with a broken strap and scratches on the leather. Seller insists item was in perfect condition when shipped. Buyer has submitted photos.</div>
+          </div>
+        </div>
+        <div class="dispute-actions" style="flex-direction:column;gap:8px;min-width:120px">
+          <button class="btn-sm primary" style="width:100%;text-align:center">Release to Seller</button>
+          <button class="btn-sm" style="width:100%;text-align:center">Refund Buyer</button>
+          <button class="btn-sm" style="width:100%;text-align:center;color:var(--muted)">Request Evidence</button>
+        </div>
+      </div>
+
+      <!-- Resolved section -->
+      <div class="section-header" style="margin-top:32px">
+        <div class="section-title">Recently Resolved</div>
+        <div class="section-link">View all →</div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dispute ID</th>
+                <th>Product</th>
+                <th>Amount</th>
+                <th>Reason</th>
+                <th>Resolution</th>
+                <th>Days Taken</th>
+                <th>Resolved</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="color:var(--muted)">#DSP-000</td>
+                <td>Sony WH-1000XM5 Headphones</td>
+                <td class="amount-green">₦120,000</td>
+                <td class="text-muted">Item not received</td>
+                <td><span class="badge green">Refunded to Buyer</span></td>
+                <td class="mono text-muted">4 days</td>
+                <td class="text-muted mono">10 Mar 2026</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--muted)">#DSP-999</td>
+                <td>Adidas Yeezy Boost 350</td>
+                <td class="amount-green">₦65,000</td>
+                <td class="text-muted">Seller unresponsive</td>
+                <td><span class="badge green">Refunded to Buyer</span></td>
+                <td class="mono text-muted">2 days</td>
+                <td class="text-muted mono">08 Mar 2026</td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--muted)">#DSP-998</td>
+                <td>LG OLED 55" TV</td>
+                <td class="amount-blue">₦450,000</td>
+                <td class="text-muted">Wrong item</td>
+                <td><span class="badge blue">Released to Seller</span></td>
+                <td class="mono text-muted">3 days</td>
+                <td class="text-muted mono">05 Mar 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
