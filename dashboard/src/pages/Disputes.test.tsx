@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Disputes from './Disputes';
 import * as client from '../api/client';
 import { AuthProvider } from '../auth/AuthContext';
+import type { EscrowOrder } from '../api/types';
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -14,7 +15,7 @@ function renderWithProviders(ui: React.ReactElement) {
   );
 }
 
-const disputedEscrow = {
+const disputedEscrow: EscrowOrder = {
   id: 'esc-disputed-1',
   buyer_account_id: 'buyer-1',
   seller_account_id: 'seller-1',

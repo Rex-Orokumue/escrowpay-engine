@@ -13,7 +13,7 @@ interface DataTableProps<T> {
   getRowKey: (row: T) => string;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+export default function DataTable<T>({
   columns,
   rows,
   emptyMessage,
@@ -44,7 +44,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             <tr key={getRowKey(row)} className="border-b border-border last:border-0">
               {columns.map((col) => (
                 <td key={col.key} className="px-4 py-3">
-                  {col.render ? col.render(row) : String(row[col.key] ?? '—')}
+                  {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
                 </td>
               ))}
             </tr>
